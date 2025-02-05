@@ -55,7 +55,23 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
     if cfg.LOCAL_RANK == 0:
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     start_time = time.time()
+
+    not_discard = [] # AQL
+    discard_count = 0
     for i, batch_dict in enumerate(dataloader):
+        #AQL
+        #print("BATCH AQL {}".format(batch_dict))
+        #if batch_dict["voxel_num_points"].shape[0] < 2: # works for batch size of 1
+        unique, counts = np.unique(batch_dict["voxel_coords"][:,0], return_counts=True)
+        if counts == [] or len(counts) < batch_dict["batch_size"] or np.any(counts < 2):
+            not_discard += [False] * batch_dict["batch_size"]
+            discard_count += batch_dict["batch_size"]
+            print("FRAME ID AQL {}".format((batch_dict["frame_id"], discard_count, i)))
+            continue
+        else:
+            not_discard += [True] * batch_dict["batch_size"]
+
+
         load_data_to_gpu(batch_dict)
 
         if getattr(args, 'infer_time', False):
@@ -84,6 +100,11 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
 
     if cfg.LOCAL_RANK == 0:
         progress_bar.close()
+    # AQL
+    import pickle
+    with open("not_discard.pkl", "wb") as f:
+        pickle.dump(not_discard, f)
+    # AQL END
 
     if dist_test:
         rank, world_size = common_utils.get_dist_info()

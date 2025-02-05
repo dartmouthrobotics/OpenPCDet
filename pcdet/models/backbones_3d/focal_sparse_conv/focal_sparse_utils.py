@@ -45,12 +45,15 @@ def sort_by_indices(features, indices, features_add=None):
             features_add: [N, C], additional features to sort
     """
     idx = indices[:, 1:]
-    idx_sum = idx.select(1, 0) * idx[:, 1].max() * idx[:, 2].max() + idx.select(1, 1) * idx[:, 2].max() + idx.select(1, 2)
-    _, ind = idx_sum.sort()
-    features = features[ind]
-    indices = indices[ind]
-    if not features_add is None:
-        features_add = features_add[ind]
+    if (idx.numel() == 0): # AQL
+         print("{}".format((features.shape, indices.shape, idx.shape, idx.numel()))) # AQL
+    else: # AQL
+        idx_sum = idx.select(1, 0) * idx[:, 1].max() * idx[:, 2].max() + idx.select(1, 1) * idx[:, 2].max() + idx.select(1, 2)
+        _, ind = idx_sum.sort()
+        features = features[ind]
+        indices = indices[ind]
+        if not features_add is None:
+            features_add = features_add[ind]
     return features, indices, features_add
 
 def check_repeat(features, indices, features_add=None, sort_first=True, flip_first=True):
@@ -68,21 +71,22 @@ def check_repeat(features, indices, features_add=None, sort_first=True, flip_fir
         features_add=features_add.flip([0])
 
     idx = indices[:, 1:].int()
-    idx_sum = torch.add(torch.add(idx.select(1, 0) * idx[:, 1].max() * idx[:, 2].max(), idx.select(1, 1) * idx[:, 2].max()), idx.select(1, 2))
-    _unique, inverse, counts = torch.unique_consecutive(idx_sum, return_inverse=True, return_counts=True, dim=0)
-    
-    if _unique.shape[0] < indices.shape[0]:
-        perm = torch.arange(inverse.size(0), dtype=inverse.dtype, device=inverse.device)
-        features_new = torch.zeros((_unique.shape[0], features.shape[-1]), device=features.device)
-        features_new.index_add_(0, inverse.long(), features)
-        features = features_new
-        perm_ = inverse.new_empty(_unique.size(0)).scatter_(0, inverse, perm)
-        indices = indices[perm_].int()
+    if (idx.numel() != 0): # AQL
+        idx_sum = torch.add(torch.add(idx.select(1, 0) * idx[:, 1].max() * idx[:, 2].max(), idx.select(1, 1) * idx[:, 2].max()), idx.select(1, 2))
+        _unique, inverse, counts = torch.unique_consecutive(idx_sum, return_inverse=True, return_counts=True, dim=0)
+        
+        if _unique.shape[0] < indices.shape[0]:
+            perm = torch.arange(inverse.size(0), dtype=inverse.dtype, device=inverse.device)
+            features_new = torch.zeros((_unique.shape[0], features.shape[-1]), device=features.device)
+            features_new.index_add_(0, inverse.long(), features)
+            features = features_new
+            perm_ = inverse.new_empty(_unique.size(0)).scatter_(0, inverse, perm)
+            indices = indices[perm_].int()
 
-        if not features_add is None:
-            features_add_new = torch.zeros((_unique.shape[0],), device=features_add.device)
-            features_add_new.index_add_(0, inverse.long(), features_add)
-            features_add = features_add_new / counts
+            if not features_add is None:
+                features_add_new = torch.zeros((_unique.shape[0],), device=features_add.device)
+                features_add_new.index_add_(0, inverse.long(), features_add)
+                features_add = features_add_new / counts
     return features, indices, features_add
 
 

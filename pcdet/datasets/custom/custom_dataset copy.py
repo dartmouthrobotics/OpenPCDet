@@ -215,7 +215,6 @@ class CustomDataset(DatasetTemplate):
         with open(db_info_save_path, 'wb') as f:
             pickle.dump(all_db_infos, f)
 
-    ## MJ unified normative
     @staticmethod
     def create_label_file_with_name_and_box(class_names, gt_names, gt_boxes, save_label_path):
         with open(save_label_path, 'w') as f:
@@ -278,9 +277,7 @@ if __name__ == '__main__':
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         create_custom_infos(
             dataset_cfg=dataset_cfg,
-            # class_names=['Vehicle', 'Pedestrian', 'Cyclist'],
-            # class_names=["ship", "buoy", "other"],
-            class_names=["ship"], # MJ
+            class_names=['Vehicle', 'Pedestrian', 'Cyclist'],
             data_path=ROOT_DIR / 'data' / 'custom',
             save_path=ROOT_DIR / 'data' / 'custom',
         )

@@ -100,12 +100,12 @@ def main():
             # pred_dicts
             
             import copy
-            # test_tensor = copy.deepcopy(pred_dicts)
-            # test_tensor[0]['pred_scores']=pred_dicts[0]['pred_scores'][4:6]
-            # test_tensor[0]['pred_labels']=pred_dicts[0]['pred_labels'][4:6]
-            # test_tensor[0]['pred_boxes']=pred_dicts[0]['pred_boxes'][4:6]
+            test_tensor = copy.deepcopy(pred_dicts)
+            test_tensor[0]['pred_scores']=pred_dicts[0]['pred_scores'][4:6]
+            test_tensor[0]['pred_labels']=pred_dicts[0]['pred_labels'][4:6]
+            test_tensor[0]['pred_boxes']=pred_dicts[0]['pred_boxes'][4:6]
 
-            # print("test tensor {}".format(test_tensor))
+            print("test tensor {}".format(test_tensor))
             # print("point {}".format(data_dict['points'][:, 1:]))
             
             """
@@ -132,14 +132,14 @@ def main():
                                                                   0.8301051700000001,
                                                                     4.070588785392322])
             """
-            V.draw_scenes(
-                points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
-                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
-            )
             # V.draw_scenes(
-            #     points=data_dict['points'][:, 1:], ref_boxes=test_tensor[0]['pred_boxes'],
-            #     ref_scores=test_tensor[0]['pred_scores'], ref_labels=test_tensor[0]['pred_labels']
+            #     points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
+            #     ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
             # )
+            V.draw_scenes(
+                points=data_dict['points'][:, 1:], ref_boxes=test_tensor[0]['pred_boxes'],
+                ref_scores=test_tensor[0]['pred_scores'], ref_labels=test_tensor[0]['pred_labels']
+            )
             if not OPEN3D_FLAG:
                 mlab.show(stop=True)
 

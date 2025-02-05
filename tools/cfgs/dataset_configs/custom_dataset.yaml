@@ -1,13 +1,30 @@
 DATASET: 'CustomDataset'
 DATA_PATH: '../data/custom'
 
-POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
+# https://github.com/open-mmlab/OpenPCDet/issues/1557
+# https://github.com/open-mmlab/OpenPCDet/issues/1361
+# Again, you can find VOXEL_SIZE: [x axis, y axis, z axis] in custom_dataset.yaml. Let's say we follow the default [0.1, 0.1, 0.15]. Voxel size of z axis is 0.15
+# If (z_max - z_max) / 0.15 = 40, then you can use any model you want. But make sure you round up z_max or round down z_min such that z_max - z_max) / 0.15 EQUALS TO 40
+# If (z_max - z_max) / 0.15 > 40, then you may want to use point or pillar based detector instead of voxel based detectors ref 3.
+# This is because to use voxel based detectors such as SECOND, PV-RCNN and CenterPoint), the point cloud range along z-axis / voxel_size of z axis is 40. You can ref 1 or ref 2
+
+###### follow this!!! 
+# Point cloud range along z-axis / voxel_size is 40
+# Point cloud range along x&y-axis / voxel_size is the multiple of 16.
+
+# POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
+# POINT_CLOUD_RANGE: [-200, -200, -10, 200, 200, 30]
+# POINT_CLOUD_RANGE: [-270.0, -254.0, -74.2, 370.0, 450.0, 125.8]
+# POINT_CLOUD_RANGE: [-96.0, -96.0, -10, 96.0, 96.0, 20] # 20241127 crop old
+POINT_CLOUD_RANGE: [-96.0, -96.0, -20, 96.0, 96.0, 20] # new crop
+# POINT_CLOUD_RANGE: [-70.4, -70.4, -4, 70.4, 70.4, 4] # 20241126 morning
 
 MAP_CLASS_TO_KITTI: {
-    'Vehicle': 'Car',
-    'Pedestrian': 'Pedestrian',
-    'Cyclist': 'Cyclist',
+    'ship': 'Car',
+    'buoy': 'Pedestrian',
+    'other': 'Cyclist',
 }
+
 
 DATA_SPLIT: {
     'train': train,
@@ -27,16 +44,21 @@ POINT_FEATURE_ENCODING: {
 
 DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']
+    DISABLE_AUG_LIST: ['random_world_flip', 'random_world_rotation', 'random_world_scaling']
+    # DISABLE_AUG_LIST: ['gt_sampling', 'random_world_flip', 'random_world_rotation', 'random_world_scaling']
     AUG_CONFIG_LIST:
         - NAME: gt_sampling
           USE_ROAD_PLANE: False
           DB_INFO_PATH:
               - custom_dbinfos_train.pkl
           PREPARE: {
-             filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5'],
+             filter_by_min_points: ['ship:1', 'buoy:1', 'other:1'],
           }
-
-          SAMPLE_GROUPS: ['Vehicle:20', 'Pedestrian:15', 'Cyclist:15']
+          # PREPARE: {
+          #    filter_by_min_points: ['ship:1', 'buoy:1'],
+          # }
+          SAMPLE_GROUPS: ['ship:15', 'buoy:15', 'other:15'] 
+          # SAMPLE_GROUPS: ['ship:15', 'buoy:15']
           NUM_POINT_FEATURES: 4
           DATABASE_WITH_FAKELIDAR: False
           REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
@@ -62,8 +84,13 @@ DATA_PROCESSOR:
       }
 
     - NAME: transform_points_to_voxels
-      VOXEL_SIZE: [0.1, 0.1, 0.15]
-      MAX_POINTS_PER_VOXEL: 5
+      # VOXEL_SIZE: [0.1, 0.1, 0.15]
+      # VOXEL_SIZE: [1.0, 1.0, 5.0]
+      # VOXEL_SIZE: [0.176, 0.176, 0.2]
+      # VOXEL_SIZE: [0.5, 0.5, 1.0]
+      # VOXEL_SIZE: [0.2, 0.2, 0.75] # after CROP
+      VOXEL_SIZE: [0.2, 0.2, 1.0] # after newest CROP
+      MAX_POINTS_PER_VOXEL: 15 # after CROP
       MAX_NUMBER_OF_VOXELS: {
         'train': 150000,
         'test': 150000

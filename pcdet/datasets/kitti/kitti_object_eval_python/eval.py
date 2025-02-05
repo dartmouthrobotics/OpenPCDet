@@ -5,10 +5,11 @@ import numpy as np
 
 from .rotate_iou import rotate_iou_gpu_eval
 
+import pdb # AQL
 
 @numba.jit
-def get_thresholds(scores: np.ndarray, num_gt, num_sample_pts=41):
-    scores.sort()
+def get_thresholds(scores: np.ndarray, num_gt, num_sample_pts=41): # default 41
+#     scores.sort()
     scores = scores[::-1]
     current_recall = 0
     thresholds = []
@@ -420,6 +421,7 @@ def _prepare_data(gt_annos, dt_annos, current_class, difficulty):
     total_dc_num = []
     ignored_gts, ignored_dets, dontcares = [], [], []
     total_num_valid_gt = 0
+    # print("current class {}".format(current_class))
     for i in range(len(gt_annos)):
         rets = clean_data(gt_annos[i], dt_annos[i], current_class, difficulty)
         num_valid_gt, ignored_gt, ignored_det, dc_bboxes = rets
@@ -466,13 +468,33 @@ def eval_class(gt_annos,
     Returns:
         dict of recall, precision and aos
     """
+    print("MIN OVERLAPS {}".format(min_overlaps))
+    if (len(gt_annos) != len(dt_annos)): # AQL
+        print("NON MATCHING len gt_annos {} dt_annos {}".format(len(gt_annos), len(dt_annos)))
+    else:
+        print("MATCHING len gt_annos {} dt_annos {}".format(len(gt_annos), len(dt_annos)))
+    # AQL
+    import pickle
+    # Saving dt_annos
+    with open("dt_annos.pkl", "wb") as f:
+        pickle.dump(dt_annos, f)
+    
+    # Matching gt_annos with dt_annos
+    with open("not_discard.pkl", "rb") as f:
+        not_discard = pickle.load(f)
+    print(len(not_discard))
+    print(len(gt_annos))
+    gt_annos = [x for x, y in zip(gt_annos, not_discard) if y == True]
+    print(len(gt_annos))
+    print(len(dt_annos))
+    # AQL END
     assert len(gt_annos) == len(dt_annos)
     num_examples = len(gt_annos)
     split_parts = get_split_parts(num_examples, num_parts)
 
     rets = calculate_iou_partly(dt_annos, gt_annos, metric, num_parts)
     overlaps, parted_overlaps, total_dt_num, total_gt_num = rets
-    N_SAMPLE_PTS = 41
+    N_SAMPLE_PTS = 41 # MJ
     num_minoverlap = len(min_overlaps)
     num_class = len(current_classes)
     num_difficulty = len(difficultys)
@@ -601,6 +623,7 @@ def do_eval(gt_annos,
         if PR_detail_dict is not None:
             PR_detail_dict['aos'] = ret['orientation']
 
+    # breakpoint()
     ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 1,
                      min_overlaps)
     mAP_bev = get_mAP(ret["precision"])
@@ -643,7 +666,10 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
     overlap_0_5 = np.array([[0.7, 0.5, 0.5, 0.7,
                              0.5, 0.5], [0.5, 0.25, 0.25, 0.5, 0.25, 0.5],
                             [0.5, 0.25, 0.25, 0.5, 0.25, 0.5]])
-    min_overlaps = np.stack([overlap_0_7, overlap_0_5], axis=0)  # [2, 3, 5]
+    # overlap_0_25 = np.array([[0.5, 0.25, 0.25, 0.5, # AQL
+    #                          0.25, 0.25], [0.25, 0.0, 0.0, 0.25, 0.0, 0.25],
+    #                         [0.25, 0.0, 0.0, 0.25, 0.0, 0.25]])
+    min_overlaps = np.stack([overlap_0_7, overlap_0_5], axis=0)  # [2, 3, 5] , overlap_0_25 # AQL
     class_to_name = {
         0: 'Car',
         1: 'Pedestrian',
@@ -662,6 +688,7 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
         else:
             current_classes_int.append(curcls)
     current_classes = current_classes_int
+    # breakpoint()
     min_overlaps = min_overlaps[:, :, current_classes]
     result = ''
     # check whether alpha is valid
@@ -679,6 +706,7 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
         # mAP threshold array: [num_minoverlap, metric, class]
         # mAP result: [num_class, num_diff, num_minoverlap]
         for i in range(min_overlaps.shape[0]):
+            # breakpoint()
             result += print_str(
                 (f"{class_to_name[curcls]} "
                  "AP@{:.2f}, {:.2f}, {:.2f}:".format(*min_overlaps[i, :, j])))
@@ -701,6 +729,7 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
                    # ret_dict['%s_aos/moderate' % class_to_name[curcls]] = mAPaos[j, 1, 0]
                    # ret_dict['%s_aos/hard' % class_to_name[curcls]] = mAPaos[j, 2, 0]
 
+            
             result += print_str(
                 (f"{class_to_name[curcls]} "
                  "AP_R40@{:.2f}, {:.2f}, {:.2f}:".format(*min_overlaps[i, :, j])))

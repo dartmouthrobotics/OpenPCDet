@@ -245,8 +245,15 @@ class AnchorHeadTemplate(nn.Module):
             anchors = self.anchors
         num_anchors = anchors.view(-1, anchors.shape[-1]).shape[0]
         batch_anchors = anchors.view(1, -1, anchors.shape[-1]).repeat(batch_size, 1, 1)
+        # if cls_preds.shape[0] < 4: # AQL
+        #     cls_preds = torch.cat((cls_preds, cls_preds[-1].unsqueeze(0)), dim=0)
+        # print("TEST {}".format((batch_size, num_anchors, anchors.shape, cls_preds.shape)))
+        
         batch_cls_preds = cls_preds.view(batch_size, num_anchors, -1).float() \
             if not isinstance(cls_preds, list) else cls_preds
+        # if box_preds.shape[0] < 4: # AQL
+        #     box_preds = torch.cat((box_preds, box_preds[-1].unsqueeze(0)), dim=0)
+
         batch_box_preds = box_preds.view(batch_size, num_anchors, -1) if not isinstance(box_preds, list) \
             else torch.cat(box_preds, dim=1).view(batch_size, num_anchors, -1)
         batch_box_preds = self.box_coder.decode_torch(batch_box_preds, batch_anchors)
@@ -254,6 +261,9 @@ class AnchorHeadTemplate(nn.Module):
         if dir_cls_preds is not None:
             dir_offset = self.model_cfg.DIR_OFFSET
             dir_limit_offset = self.model_cfg.DIR_LIMIT_OFFSET
+            # if dir_cls_preds.shape[0] < 4: # AQL
+            #     dir_cls_preds = torch.cat((dir_cls_preds, dir_cls_preds[-1].unsqueeze(0)), dim=0)
+
             dir_cls_preds = dir_cls_preds.view(batch_size, num_anchors, -1) if not isinstance(dir_cls_preds, list) \
                 else torch.cat(dir_cls_preds, dim=1).view(batch_size, num_anchors, -1)
             dir_labels = torch.max(dir_cls_preds, dim=-1)[1]

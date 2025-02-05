@@ -224,7 +224,6 @@ class VoxelSetAbstraction(nn.Module):
         )
         return sampled_points
 
-    ### MJ
     def get_sampled_points(self, batch_dict):
         """
         Args:
@@ -237,72 +236,7 @@ class VoxelSetAbstraction(nn.Module):
         if self.model_cfg.POINT_SOURCE == 'raw_points':
             src_points = batch_dict['points'][:, 1:4]
             batch_indices = batch_dict['points'][:, 0].long()
-        elif self.model_cfg.POINT_SOURCE == 'voxel_centers':
-            src_points = common_utils.get_voxel_centers(
-                batch_dict['voxel_coords'][:, 1:4],
-                downsample_times=1,
-                voxel_size=self.voxel_size,
-                point_cloud_range=self.point_cloud_range
-            )
-            batch_indices = batch_dict['voxel_coords'][:, 0].long()
-        else:
-            raise NotImplementedError
-
-        keypoints_list = []
-        for bs_idx in range(batch_size):
-            bs_mask = (batch_indices == bs_idx)
-            sampled_points = src_points[bs_mask].unsqueeze(dim=0)  # (1, N, 3)
-
-            # Skip if no points are available
-            if sampled_points.shape[1] == 0:
-                # Append an empty tensor to maintain consistency
-                keypoints_list.append(torch.empty((0, 4), device=src_points.device))
-                continue
-
-            if self.model_cfg.SAMPLE_METHOD == 'FPS':
-                cur_pt_idxs = pointnet2_stack_utils.farthest_point_sample(
-                    sampled_points[:, :, 0:3].contiguous(), self.model_cfg.NUM_KEYPOINTS
-                ).long()
-
-                if sampled_points.shape[1] < self.model_cfg.NUM_KEYPOINTS:
-                    times = int(self.model_cfg.NUM_KEYPOINTS / sampled_points.shape[1]) + 1
-                    non_empty = cur_pt_idxs[0, :sampled_points.shape[1]]
-                    cur_pt_idxs[0] = non_empty.repeat(times)[:self.model_cfg.NUM_KEYPOINTS]
-
-                keypoints = sampled_points[0][cur_pt_idxs[0]].unsqueeze(dim=0)
-
-            elif self.model_cfg.SAMPLE_METHOD == 'SPC':
-                cur_keypoints = self.sectorized_proposal_centric_sampling(
-                    roi_boxes=batch_dict['rois'][bs_idx], points=sampled_points[0]
-                )
-                bs_idxs = cur_keypoints.new_ones(cur_keypoints.shape[0]) * bs_idx
-                keypoints = torch.cat((bs_idxs[:, None], cur_keypoints), dim=1)
-            else:
-                raise NotImplementedError
-
-            # Append sampled keypoints with batch index
-            bs_idxs = torch.full((keypoints.shape[1], 1), bs_idx, device=keypoints.device)
-            keypoints = torch.cat((bs_idxs.float(), keypoints.view(-1, 3)), dim=1)
-            keypoints_list.append(keypoints)
-
-        # Concatenate all keypoints
-        keypoints = torch.cat(keypoints_list, dim=0) if keypoints_list else torch.empty((0, 4), device=src_points.device)
-
-        return keypoints
-
-    def get_sampled_points_origin(self, batch_dict):
-        """
-        Args:
-            batch_dict:
-
-        Returns:
-            keypoints: (N1 + N2 + ..., 4), where 4 indicates [bs_idx, x, y, z]
-        """
-        batch_size = batch_dict['batch_size']
-        if self.model_cfg.POINT_SOURCE == 'raw_points':
-            src_points = batch_dict['points'][:, 1:4]
-            batch_indices = batch_dict['points'][:, 0].long()
-            # print("batch_dict['points'] {}".format(batch_dict['points'].shape))
+            print("HEREHERE")
         elif self.model_cfg.POINT_SOURCE == 'voxel_centers':
             src_points = common_utils.get_voxel_centers(
                 batch_dict['voxel_coords'][:, 1:4],
@@ -316,12 +250,11 @@ class VoxelSetAbstraction(nn.Module):
         keypoints_list = []
         for bs_idx in range(batch_size):
             bs_mask = (batch_indices == bs_idx)
-            # print("bs mask {}".format(bs_mask))
-            # print("bs_idx {}".format(bs_idx))
-            # print("batch_indices {} shape {}".format(batch_indices, batch_indices.shape))
-            # print("src points {} size {}".format(src_points, src_points.shape))
+            print("bs mask {}".format(bs_mask))
+            print("bs_idx {}".format(bs_idx))
+            print("batch_indices {}".format(batch_indices))
             sampled_points = src_points[bs_mask].unsqueeze(dim=0)  # (1, N, 3)
-
+            print("src points {} size {}".format(src_points, src_points.shape))
             if self.model_cfg.SAMPLE_METHOD == 'FPS':
                 cur_pt_idxs = pointnet2_stack_utils.farthest_point_sample(
                     sampled_points[:, :, 0:3].contiguous(), self.model_cfg.NUM_KEYPOINTS
@@ -329,7 +262,7 @@ class VoxelSetAbstraction(nn.Module):
 
                 if sampled_points.shape[1] < self.model_cfg.NUM_KEYPOINTS:
                 # if sampled_points.shape[1] < self.model_cfg.NUM_KEYPOINTS and sampled_points.shape[1]!= 0: #MJ
-                    # print("sample", sampled_points, "shape", sampled_points.shape[1]) # MJ
+                    print("sample", sampled_points, "shape", sampled_points.shape[1]) # MJ
                     times = int(self.model_cfg.NUM_KEYPOINTS / sampled_points.shape[1]) + 1
                     non_empty = cur_pt_idxs[0, :sampled_points.shape[1]]
                     cur_pt_idxs[0] = non_empty.repeat(times)[:self.model_cfg.NUM_KEYPOINTS]

@@ -65,6 +65,22 @@ class KittiDataset(DatasetTemplate):
         assert lidar_file.exists()
         return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
 
+    # MJ
+    # def get_image(self, idx):
+    #     """
+    #     Loads image for a sample
+    #     Args:
+    #         idx: int, Sample index
+    #     Returns:
+    #         image: (H, W, 3), RGB Image
+    #     """
+    #     img_file = self.root_split_path / 'image_2' / ('%s.png' % idx)
+    #     assert img_file.exists()
+    #     image = io.imread(img_file)
+    #     image = image.astype(np.float32)
+    #     image /= 255.0
+    #     return image
+
     def get_image(self, idx):
         """
         Loads image for a sample
@@ -73,17 +89,25 @@ class KittiDataset(DatasetTemplate):
         Returns:
             image: (H, W, 3), RGB Image
         """
-        img_file = self.root_split_path / 'image_2' / ('%s.png' % idx)
+        img_file = self.root_split_path / 'image_2' / ('%s.jpg' % idx)
         assert img_file.exists()
         image = io.imread(img_file)
         image = image.astype(np.float32)
         image /= 255.0
         return image
 
+
+    # MJ
+    # def get_image_shape(self, idx):
+    #     img_file = self.root_split_path / 'image_2' / ('%s.png' % idx)
+    #     assert img_file.exists()
+    #     return np.array(io.imread(img_file).shape[:2], dtype=np.int32)
+
     def get_image_shape(self, idx):
-        img_file = self.root_split_path / 'image_2' / ('%s.png' % idx)
+        img_file = self.root_split_path / 'image_2' / ('%s.jpg' % idx)
         assert img_file.exists()
         return np.array(io.imread(img_file).shape[:2], dtype=np.int32)
+
 
     def get_label(self, idx):
         label_file = self.root_split_path / 'label_2' / ('%s.txt' % idx)
@@ -104,6 +128,7 @@ class KittiDataset(DatasetTemplate):
         depth = depth.astype(np.float32)
         depth /= 256.0
         return depth
+
 
     def get_calib(self, idx):
         calib_file = self.root_split_path / 'calib' / ('%s.txt' % idx)
@@ -478,7 +503,8 @@ if __name__ == '__main__':
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         create_kitti_infos(
             dataset_cfg=dataset_cfg,
-            class_names=['Car', 'Pedestrian', 'Cyclist'],
+            # class_names=['Car', 'Pedestrian', 'Cyclist'], # MJ
+            class_names=['Car'],
             data_path=ROOT_DIR / 'data' / 'kitti',
             save_path=ROOT_DIR / 'data' / 'kitti'
         )

@@ -151,6 +151,7 @@ class DataProcessor(object):
         points = data_dict['points']
         voxel_output = self.voxel_generator.generate(points)
         voxels, coordinates, num_points = voxel_output
+        # print("VOXELS {}".format(voxels.shape)) #AQL
 
         if not data_dict['use_lead_xyz']:
             voxels = voxels[..., 3:]  # remove xyz in voxels(N, 3)
@@ -179,7 +180,75 @@ class DataProcessor(object):
             data_dict['voxel_num_points'] = num_points
         return data_dict
 
+    # MJ new
     def sample_points(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.sample_points, config=config)
+
+        num_points = config.NUM_POINTS[self.mode]
+        if num_points == -1:
+            return data_dict
+
+        points = data_dict['points']
+        if points.size == 0:
+            print("Error: 'points' array is empty. Returning empty data dictionary.")
+            # Return an empty or default data_dict when points are empty
+            data_dict['points'] = np.zeros((num_points, points.shape[1])) if num_points > 0 else points
+            return data_dict
+
+        if num_points < len(points):
+            # Sampling for case where num_points < len(points)
+            pts_depth = np.linalg.norm(points[:, 0:3], axis=1)
+            pts_near_flag = pts_depth < 40.0
+            far_idxs_choice = np.where(pts_near_flag == 0)[0]
+            near_idxs = np.where(pts_near_flag == 1)[0]
+            choice = []
+            if num_points > len(far_idxs_choice):
+                near_idxs_choice = np.random.choice(near_idxs, num_points - len(far_idxs_choice), replace=False)
+                choice = np.concatenate((near_idxs_choice, far_idxs_choice), axis=0) \
+                    if len(far_idxs_choice) > 0 else near_idxs_choice
+            else: 
+                choice = np.arange(0, len(points), dtype=np.int32)
+                choice = np.random.choice(choice, num_points, replace=False)
+            np.random.shuffle(choice)
+        else:
+            # Sampling for case where num_points >= len(points)
+            choice = np.arange(0, len(points), dtype=np.int32)
+
+            if num_points > len(points):
+                if choice.size == 0:
+                    print("Warning: 'choice' array is empty. Debug Info -> choice: {}, num_points: {}, len(points): {}".format(choice, num_points, len(points)))
+                    # Fallback logic if 'choice' is empty
+                    if len(points) > 0:
+                        # Replicate points if 'points' has data
+                        extra_choice = np.random.choice(len(points), num_points - len(points), replace=True)
+                    else:
+                        # If 'points' is also empty, create a dummy array with zeros
+                        extra_choice = np.zeros(num_points, dtype=int)
+                else:
+                    try:
+                        # Attempt sampling without replacement
+                        extra_choice = np.random.choice(choice, num_points - len(points), replace=False)
+                    except ValueError:
+                        # Fallback to sampling with replacement if needed
+                        extra_choice = np.random.choice(choice, num_points - len(points), replace=True)
+                # Combine original choice and extra points
+                choice = np.concatenate((choice, extra_choice), axis=0)
+
+            # Shuffle the combined choice array
+            np.random.shuffle(choice)
+
+        # Safely index into 'points'
+        if choice.size > 0 and points.shape[0] > 0:
+            data_dict['points'] = points[choice]
+        else:
+            print("Error: Unable to sample valid points. Returning empty array.")
+            data_dict['points'] = np.zeros((num_points, points.shape[1])) if num_points > 0 else points
+
+        return data_dict
+
+
+    def sample_points_original(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.sample_points, config=config)
 
@@ -203,11 +272,21 @@ class DataProcessor(object):
                 choice = np.random.choice(choice, num_points, replace=False)
             np.random.shuffle(choice)
         else:
+
             choice = np.arange(0, len(points), dtype=np.int32)
             if num_points > len(points):
-                extra_choice = np.random.choice(choice, num_points - len(points), replace=False)
+                # MJ https://github.com/open-mmlab/OpenPCDet/issues/313
+                # extra_choice = np.random.choice(choice, num_points - len(points), replace=False)
+                if choice.size == 0:
+                    print("{}".format((choice, num_points, len(points))))
+                try:
+                    extra_choice = np.random.choice(choice, num_points - len(points), replace=False)
+                except ValueError:
+                    
+                    extra_choice = np.random.choice(choice, num_points - len(points), replace=True)
                 choice = np.concatenate((choice, extra_choice), axis=0)
             np.random.shuffle(choice)
+            
         data_dict['points'] = points[choice]
         return data_dict
 

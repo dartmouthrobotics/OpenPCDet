@@ -2,14 +2,14 @@ import argparse
 import glob
 from pathlib import Path
 
-try:
-    import open3d
-    from visual_utils import open3d_vis_utils as V
-    OPEN3D_FLAG = True
-except:
-    import mayavi.mlab as mlab
-    from visual_utils import visualize_utils as V
-    OPEN3D_FLAG = False
+# try:
+#     import open3d
+#     from visual_utils import open3d_vis_utils as V
+#     OPEN3D_FLAG = True
+# except:
+import mayavi.mlab as mlab
+from visual_utils import visualize_utils as V
+OPEN3D_FLAG = False
 
 import numpy as np
 import torch
@@ -19,9 +19,12 @@ from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
 
+import cv2 #AQl
 
 class DemoDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin'):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin',
+                 img_path='', ext_img='.jpg' #AQL
+                 ):
         """
         Args:
             root_path:
@@ -36,9 +39,16 @@ class DemoDataset(DatasetTemplate):
         self.root_path = root_path
         self.ext = ext
         data_file_list = glob.glob(str(root_path / f'*{self.ext}')) if self.root_path.is_dir() else [self.root_path]
+        print(data_file_list)
 
         data_file_list.sort()
         self.sample_file_list = data_file_list
+        # AQL
+        if img_path:
+            self.img_path = img_path
+            self.ext_img = ext_img
+            data_file_list = glob.glob(str(img_path / f'*{self.ext_img}')) if self.img_path.is_dir() else [self.img_path]
+            self.image_file_list = data_file_list
 
     def __len__(self):
         return len(self.sample_file_list)
@@ -51,10 +61,19 @@ class DemoDataset(DatasetTemplate):
         else:
             raise NotImplementedError
 
-        input_dict = {
-            'points': points,
-            'frame_id': index,
-        }
+        # AQL
+        if self.img_path:
+            images = cv2.imread(self.image_file_list[index])
+            input_dict = {
+                'points': points,
+                'frame_id': index,
+                'images': images
+            }
+        else:
+            input_dict = {
+                'points': points,
+                'frame_id': index,
+            }
 
         data_dict = self.prepare_data(data_dict=input_dict)
         return data_dict
@@ -66,6 +85,8 @@ def parse_config():
                         help='specify the config for demo')
     parser.add_argument('--data_path', type=str, default='demo_data',
                         help='specify the point cloud data file or directory')
+    parser.add_argument('--img_path', type=str, default='',
+                        help='specify the image data file or directory') #AQL
     parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
 
@@ -82,7 +103,8 @@ def main():
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
     demo_dataset = DemoDataset(
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.data_path), ext=args.ext, logger=logger
+        root_path=Path(args.data_path), ext=args.ext, logger=logger, 
+        img_path=Path(args.img_path) #AQL
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
@@ -140,6 +162,7 @@ def main():
             #     points=data_dict['points'][:, 1:], ref_boxes=test_tensor[0]['pred_boxes'],
             #     ref_scores=test_tensor[0]['pred_scores'], ref_labels=test_tensor[0]['pred_labels']
             # )
+            logger.info("showing")
             if not OPEN3D_FLAG:
                 mlab.show(stop=True)
 
